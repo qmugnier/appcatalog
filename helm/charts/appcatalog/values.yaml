@@ -34,20 +34,38 @@ ingress:
 resources: {}
 nginx:
   config: |
-    server {
-        listen       8080;
-        listen  [::]:8080;
-        server_name  _;
+    user  nginx;
+    worker_processes  auto;
 
-        gzip on;
-        gzip_types text/plain text/css application/json application/javascript text/xml application/xml+rss text/javascript;
-        root   /usr/share/nginx/html;
-        # Let SPA handle routing
-        location / {
-            try_files $uri $uri/ /index.html;
-        }
-        error_page  500 502 503 504 /50x.html;
-        location = /50x.html {
-            root /usr/share/nginx/html;
-        }
+    events {
+      worker_connections  1024;
+    }
+
+    http {
+      include       /etc/nginx/mime.types;
+      default_type  application/octet-stream;
+
+      sendfile        on;
+      keepalive_timeout  65;
+
+      server {
+          listen       8080;
+          listen  [::]:8080;
+          server_name  _;
+
+          gzip on;
+          gzip_types text/plain text/css application/json application/javascript text/xml application/xml+rss text/javascript;
+
+          root   /usr/share/nginx/html;
+
+          # Let SPA handle routing
+          location / {
+              try_files $uri $uri/ /index.html;
+          }
+
+          error_page  500 502 503 504 /50x.html;
+          location = /50x.html {
+              root /usr/share/nginx/html;
+          }
+       }
     }
