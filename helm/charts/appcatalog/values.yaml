@@ -1,0 +1,32 @@
+image:
+  repository: myregistry/myapp
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+serviceAccount:
+  create: false
+  name: "appcatalog-service-account"
+  annotations: {}
+
+supabase:
+  url: "https://your-supabase-url.io"
+  anonKeySecret:
+    create: true
+    name: "supabase-anon-key"
+    key: "anon-key"
+    value: "your-supabase-anon-key"
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: traefik
+  host: myapp.example.com
+  path: /
+  tls: false
+
+resources: {}
