@@ -136,4 +136,8 @@ dist
 
 # Vite logs files
 vite.config.js.timestamp-*
+<<<<<<< HEAD
 vite.config.ts.timestamp-*
+=======
+vite.config.ts.timestamp-*
+>>>>>>> 351a622488a3d85e600256145d4c973564836b77
