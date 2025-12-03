@@ -32,10 +32,21 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.supabase.anonKeySecret.name }}
                   key: {{ .Values.supabase.anonKeySecret.key }}
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
           ports:
             - name: http
-              containerPort: 80
+              containerPort: 8080
       imagePullSecrets:
         {{- range .Values.image.pullSecrets }}
         - name: {{ .name }}
         {{- end }}
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "appcatalog.fullname" . }}-nginx-conf
+            items:
+              - key: nginx.conf
+                path: nginx.conf
