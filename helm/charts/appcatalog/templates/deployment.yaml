@@ -21,10 +21,6 @@ spec:
         - name: nginx
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          imagePullSecrets:
-            {{- range .Values.image.pullSecrets }}
-            - name: {{ .name }}
-            {{- end }}
           env:
             - name: VITE_SUPABASE_URL
               valueFrom:
@@ -39,3 +35,7 @@ spec:
           ports:
             - name: http
               containerPort: 80
+      imagePullSecrets:
+        {{- range .Values.image.pullSecrets }}
+        - name: {{ .name }}
+        {{- end }}
