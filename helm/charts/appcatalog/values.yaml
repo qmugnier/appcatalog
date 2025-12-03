@@ -2,6 +2,8 @@ image:
   repository: myregistry/myapp
   tag: "latest"
   pullPolicy: IfNotPresent
+  pullSecrets:
+    - name: regcred
 
 replicaCount: 1
 
