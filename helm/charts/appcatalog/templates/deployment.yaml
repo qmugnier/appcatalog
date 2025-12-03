@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "appcatalog.fullname" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "appcatalog.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "appcatalog.name" . }}
+    spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "appcatalog.fullname" . }}
+      {{- else if .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- end }}
+      containers:
+        - name: nginx
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: VITE_SUPABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "appcatalog.fullname" . }}
+                  key: VITE_SUPABASE_URL
+            - name: VITE_SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.supabase.anonKeySecret.name }}
+                  key: {{ .Values.supabase.anonKeySecret.key }}
+          ports:
+            - name: http
+              containerPort: 80
