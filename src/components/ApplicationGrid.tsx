@@ -65,7 +65,29 @@ export default function ApplicationGrid({ viewMode = 'grid', onViewModeChange }:
   const refreshApplications = async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      const applications = await applicationService.getAllApplications();
+      const applicationsWithRelations: any[] = await applicationService.getAllApplications();
+
+      // Map ApplicationWithRelations to Application, converting stakeholders array to the expected stakeholders object
+      const applications: Application[] = applicationsWithRelations.map((a: any) => {
+        const stakeholdersArray: any[] = a.stakeholders ?? [];
+        const getStakeholderValue = (role: string) => {
+          const s = stakeholdersArray.find((st: any) => st.role === role);
+          return s ? (s.name ?? s.id ?? '') : '';
+        };
+
+        return {
+          ...a,
+          stakeholders: {
+            applicationArchitect: getStakeholderValue('applicationArchitect'),
+            productOwner: getStakeholderValue('productOwner'),
+            leadDeveloper: getStakeholderValue('leadDeveloper'),
+            devOpsEngineer: getStakeholderValue('devOpsEngineer'),
+            securityOfficer: getStakeholderValue('securityOfficer'),
+            governanceManager: getStakeholderValue('governanceManager'),
+          },
+        } as Application;
+      });
+
       dispatch({ type: 'SET_APPLICATIONS', payload: applications });
     } catch (error) {
       console.error('Error refreshing applications:', error);

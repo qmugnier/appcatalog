@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Edit2, Building2, Mail } from 'lucide-react';
-import { Stakeholder, STAKEHOLDER_ROLES, DEPARTMENTS } from '../types';
+import { Stakeholder, DEPARTMENTS } from '../types';
 import { stakeholderService } from '../services/stakeholderService';
-import { useApp } from '../context/AppContext';
 
 interface StakeholderManagementProps {
   isOpen: boolean;
@@ -18,9 +17,7 @@ interface FormData {
 }
 
 export default function StakeholderManagement({ isOpen, onClose }: StakeholderManagementProps) {
-  const { state } = useApp();
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([]);
-  const [departmentGroups, setDepartmentGroups] = useState<Map<string, Stakeholder[]>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingStakeholder, setEditingStakeholder] = useState<Stakeholder | null>(null);
@@ -45,9 +42,6 @@ export default function StakeholderManagement({ isOpen, onClose }: StakeholderMa
     try {
       const stakeholders = await stakeholderService.getAllStakeholders();
       setStakeholders(stakeholders);
-
-      const groups = await stakeholderService.getStakeholdersByDepartment();
-      setDepartmentGroups(groups);
     } catch (err) {
       console.error('Error fetching stakeholders:', err);
       setError('Failed to load stakeholders');
@@ -133,8 +127,6 @@ export default function StakeholderManagement({ isOpen, onClose }: StakeholderMa
   };
 
   if (!isOpen) return null;
-
-  const departments = Array.from(departmentGroups.keys()).sort();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -257,32 +249,27 @@ export default function StakeholderManagement({ isOpen, onClose }: StakeholderMa
                 <span>Loading stakeholders...</span>
               </div>
             </div>
-          ) : departments.length === 0 ? (
+          ) : stakeholders.length === 0 ? (
             <div className="text-center py-12">
               <Building2 className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400">No stakeholders yet. Create one to get started.</p>
             </div>
           ) : (
             <div className="space-y-6">
-              {departments.map(department => {
-                const deptStakeholders = departmentGroups.get(department) || [];
-                const uniqueStakeholders = Array.from(
-                  new Map(deptStakeholders.map(s => [s.id, s])).values()
-                );
-                return (
-                  <div key={department} className="space-y-3">
-                    <div className="flex items-center space-x-2 pb-2 border-b-2 border-gray-200 dark:border-gray-700">
-                      <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {department}
-                      </h3>
-                      <span className="ml-auto text-sm text-gray-500 dark:text-gray-400">
-                        {uniqueStakeholders.length} {uniqueStakeholders.length === 1 ? 'member' : 'members'}
-                      </span>
-                    </div>
+              {/* Display all unique stakeholders */}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2 pb-2 border-b-2 border-gray-200 dark:border-gray-700">
+                  <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    All Stakeholders
+                  </h3>
+                  <span className="ml-auto text-sm text-gray-500 dark:text-gray-400">
+                    {stakeholders.length} {stakeholders.length === 1 ? 'member' : 'members'}
+                  </span>
+                </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {uniqueStakeholders.map(stakeholder => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {stakeholders.map(stakeholder => (
                         <div
                           key={stakeholder.id}
                           className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:shadow-md transition-shadow"
@@ -328,19 +315,22 @@ export default function StakeholderManagement({ isOpen, onClose }: StakeholderMa
                             </a>
                           </div>
 
-                          {stakeholder.roles.length > 0 && (
+                          {stakeholder.roles && stakeholder.roles.length > 0 && (
                             <div className="space-y-2">
                               <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                Roles ({stakeholder.roles.length}):
+                                Roles:
                               </p>
                               <div className="flex flex-wrap gap-1">
                                 {stakeholder.roles.map(role => (
-                                  <span
+                                  <div
                                     key={role.id}
-                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200"
+                                    className="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs"
                                   >
-                                    {role.role} {role.applicationCode && `(${role.applicationCode})`}
-                                  </span>
+                                    <span className="font-medium">{role.role}</span>
+                                    {role.applicationCode && (
+                                      <span className="ml-1 opacity-75">({role.applicationCode})</span>
+                                    )}
+                                  </div>
                                 ))}
                               </div>
                             </div>
@@ -348,9 +338,7 @@ export default function StakeholderManagement({ isOpen, onClose }: StakeholderMa
                         </div>
                       ))}
                     </div>
-                  </div>
-                );
-              })}
+                </div>
             </div>
           )}
         </div>

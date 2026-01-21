@@ -7,7 +7,7 @@ RUN npm install -g npm@11.6.4
 COPY . .
 RUN npm run build
 
-FROM harbor.exotec.com/docker_public_proxy/library/nginx:alpine
+FROM nginx
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
