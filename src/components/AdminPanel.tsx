@@ -62,7 +62,18 @@ export default function AdminPanel() {
         }
 
         const updatedApps = await applicationService.getAllApplications();
-        dispatch({ type: 'SET_APPLICATIONS', payload: updatedApps });
+        const transformedApps = updatedApps.map(app => ({
+          ...app,
+          stakeholders: {
+            applicationArchitect: app.stakeholders.find(s => s.role === 'applicationArchitect')?.name || '',
+            productOwner: app.stakeholders.find(s => s.role === 'productOwner')?.name || '',
+            leadDeveloper: app.stakeholders.find(s => s.role === 'leadDeveloper')?.name || '',
+            devOpsEngineer: app.stakeholders.find(s => s.role === 'devOpsEngineer')?.name || '',
+            securityOfficer: app.stakeholders.find(s => s.role === 'securityOfficer')?.name || '',
+            governanceManager: app.stakeholders.find(s => s.role === 'governanceManager')?.name || ''
+          }
+        }));
+        dispatch({ type: 'SET_APPLICATIONS', payload: transformedApps });
       } catch (err) {
         console.error('Error parsing import file:', err);
         alert('Error importing file. Please make sure it is valid JSON.');

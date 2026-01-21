@@ -23,7 +23,10 @@ export class ApplicationService {
         .from('applications')
         .select(`
           *,
-          stakeholders (*),
+          stakeholder_roles (
+            *,
+            stakeholders (id, name, email)
+          ),
           application_relationships (*)
         `)
         .order('updated_at', { ascending: false })
@@ -43,7 +46,10 @@ export class ApplicationService {
         .from('applications')
         .select(`
           *,
-          stakeholders (*),
+          stakeholder_roles (
+            *,
+            stakeholders (id, name, email)
+          ),
           application_relationships (*)
         `)
         .eq('id', id)
@@ -239,7 +245,10 @@ export class ApplicationService {
         .from('applications')
         .select(`
           *,
-          stakeholders (*),
+          stakeholder_roles (
+            *,
+            stakeholders (id, name, email)
+          ),
           application_relationships (*)
         `)
         .or(`name.ilike.%${query}%,description.ilike.%${query}%,app_code.ilike.%${query}%`)
@@ -271,8 +280,8 @@ export class ApplicationService {
           ?.filter((rel: any) => rel.relationship_type === 'technical')
           ?.map((rel: any) => rel.target_app_code) || []
       },
-      stakeholders: app.stakeholders?.reduce((acc: any, stakeholder: any) => {
-        acc[stakeholder.role] = stakeholder.name
+      stakeholders: app.stakeholder_roles?.reduce((acc: any, stakeholder: any) => {
+        acc[stakeholder.role] = stakeholder.stakeholders?.name || ''
         return acc
       }, {}) || {
         applicationArchitect: '',

@@ -1,32 +1,36 @@
 import React, { useState } from 'react';
-import { X, Calendar, Users, Link2, Code, Shield, Edit, ExternalLink } from 'lucide-react';
+import { X, Calendar, Users, Link2, Code, Edit, ExternalLink } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DOMAIN_COLORS, STATUS_COLORS, Stakeholder } from '../types';
 import StakeholderDetailModal from './StakeholderDetailModal';
+import ApplicationForm from './ApplicationForm';
 import { stakeholderService } from '../services/stakeholderService';
+import { applicationService } from '../services/applicationService';
 
 interface ApplicationDetailProps {
-  onEdit?: () => void;
 }
 
-export default function ApplicationDetail({ onEdit }: ApplicationDetailProps) {
+export default function ApplicationDetail({ }: ApplicationDetailProps) {
   const { state, dispatch } = useApp();
   const [selectedStakeholder, setSelectedStakeholder] = useState<Stakeholder | null>(null);
   const [isStakeholderModalOpen, setIsStakeholderModalOpen] = useState(false);
-  const [allStakeholders, setAllStakeholders] = useState<Map<string, Stakeholder>>(new Map());
+  const [appStakeholders, setAppStakeholders] = useState<Stakeholder[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   React.useEffect(() => {
     const loadStakeholders = async () => {
       try {
-        const stakeholders = await stakeholderService.getAllStakeholders();
-        const map = new Map(stakeholders.map(s => [s.id, s]));
-        setAllStakeholders(map);
+        if (state.selectedApp?.id) {
+          const stakeholders = await stakeholderService.getStakeholdersByApplicationId(state.selectedApp.id);
+          setAppStakeholders(stakeholders);
+        }
       } catch (err) {
         console.error('Error loading stakeholders:', err);
+        setAppStakeholders([]);
       }
     };
     loadStakeholders();
-  }, []);
+  }, [state.selectedApp?.id]);
 
   if (!state.selectedApp) return null;
 
@@ -34,6 +38,55 @@ export default function ApplicationDetail({ onEdit }: ApplicationDetailProps) {
 
   const handleClose = () => {
     dispatch({ type: 'SET_SELECTED_APP', payload: null });
+  };
+
+  const handleEdit = () => {
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    refreshApplications();
+  };
+
+  const refreshApplications = async () => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      const applicationsWithRelations: any[] = await applicationService.getAllApplications();
+
+      // Map ApplicationWithRelations to Application, converting stakeholders array to the expected stakeholders object
+      const applications: any[] = applicationsWithRelations.map((a: any) => {
+        const stakeholdersArray: any[] = a.stakeholders ?? [];
+        const getStakeholderValue = (role: string) => {
+          const s = stakeholdersArray.find((st: any) => st.role === role);
+          return s ? (s.name ?? s.id ?? '') : '';
+        };
+
+        return {
+          ...a,
+          stakeholders: {
+            applicationArchitect: getStakeholderValue('applicationArchitect'),
+            productOwner: getStakeholderValue('productOwner'),
+            leadDeveloper: getStakeholderValue('leadDeveloper'),
+            devOpsEngineer: getStakeholderValue('devOpsEngineer'),
+            securityOfficer: getStakeholderValue('securityOfficer'),
+            governanceManager: getStakeholderValue('governanceManager'),
+          },
+        };
+      });
+
+      dispatch({ type: 'SET_APPLICATIONS', payload: applications });
+      
+      // Update the selected app to reflect changes
+      const updatedApp = applications.find(a => a.id === state.selectedApp?.id);
+      if (updatedApp) {
+        dispatch({ type: 'SET_SELECTED_APP', payload: updatedApp });
+      }
+    } catch (error) {
+      console.error('Error refreshing applications:', error);
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
   };
 
   const handleRelatedAppClick = (appCode: string) => {
@@ -44,20 +97,11 @@ export default function ApplicationDetail({ onEdit }: ApplicationDetailProps) {
   };
 
   const handleStakeholderClick = (stakeholderId: string) => {
-    const stakeholder = allStakeholders.get(stakeholderId);
+    const stakeholder = appStakeholders.find(s => s.id === stakeholderId);
     if (stakeholder) {
       setSelectedStakeholder(stakeholder);
       setIsStakeholderModalOpen(true);
     }
-  };
-
-  const stakeholderRoles = {
-    applicationArchitect: 'Application Architect',
-    productOwner: 'Product Owner',
-    leadDeveloper: 'Lead Developer',
-    devOpsEngineer: 'DevOps Engineer',
-    securityOfficer: 'Security Officer',
-    governanceManager: 'Governance Manager'
   };
 
   return (
@@ -84,7 +128,7 @@ export default function ApplicationDetail({ onEdit }: ApplicationDetailProps) {
             <div className="flex items-center space-x-2">
               {state.user?.role === 'admin' && (
                 <button
-                  onClick={onEdit}
+                  onClick={handleEdit}
                   className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   aria-label="Edit application"
                 >
@@ -157,39 +201,55 @@ export default function ApplicationDetail({ onEdit }: ApplicationDetailProps) {
               <Users className="w-5 h-5 mr-2" />
               Stakeholders
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(app.stakeholders).map(([role, name]) => {
-                const matchingStakeholder = Array.from(allStakeholders.values()).find(s => s.name === name);
+            {(() => {
+              if (appStakeholders.length === 0) {
                 return (
-                  <button
-                    key={role}
-                    onClick={() => {
-                      if (matchingStakeholder) {
-                        handleStakeholderClick(matchingStakeholder.id);
-                      }
-                    }}
-                    disabled={!matchingStakeholder}
-                    className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:shadow-md dark:hover:bg-gray-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-medium text-white">
-                          {name.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {name}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {stakeholderRoles[role as keyof typeof stakeholderRoles]}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>No stakeholders assigned to this application</p>
+                  </div>
                 );
-              })}
-            </div>
+              }
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {appStakeholders.map(stakeholder => (
+                    <button
+                      key={stakeholder.id}
+                      onClick={() => handleStakeholderClick(stakeholder.id)}
+                      className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:shadow-md dark:hover:bg-gray-600 transition-all text-left"
+                    >
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-medium text-white">
+                            {stakeholder.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {stakeholder.name}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {stakeholder.position || 'No position'}
+                          </div>
+                        </div>
+                      </div>
+                      {stakeholder.roles.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                            Roles:
+                          </p>
+                          {stakeholder.roles.map((role: any) => (
+                            <div key={role.id} className="text-xs text-gray-600 dark:text-gray-300">
+                              {role.role}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Related Applications */}
@@ -311,6 +371,12 @@ export default function ApplicationDetail({ onEdit }: ApplicationDetailProps) {
           setIsStakeholderModalOpen(false);
           window.location.reload();
         }}
+      />
+
+      <ApplicationForm
+        isOpen={isFormOpen}
+        onClose={handleCloseForm}
+        editingApp={state.selectedApp || undefined}
       />
     </>
   );

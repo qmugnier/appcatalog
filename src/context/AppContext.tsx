@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import Cookies from 'js-cookie';
 import { AppState, Application, User, FilterState } from '../types';
 import { applicationService, ApplicationWithRelations } from '../services/applicationService';
 import { authService } from '../services/authService';
 
-type AppAction = 
+type AppAction =
   | { type: 'SET_USER'; payload: User | null }
   | { type: 'SET_APPLICATIONS'; payload: Application[] }
   | { type: 'ADD_APPLICATION'; payload: Application }
@@ -14,8 +15,10 @@ type AppAction =
   | { type: 'ADD_SEARCH_HISTORY'; payload: string }
   | { type: 'CLEAR_SEARCH_HISTORY' }
   | { type: 'TOGGLE_DARK_MODE' }
+  | { type: 'SET_DARK_MODE'; payload: boolean }
   | { type: 'SET_SELECTED_APP'; payload: Application | null }
-  | { type: 'SET_LOADING'; payload: boolean };
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_FILTER_PANEL_OPEN'; payload: boolean };
 
 const initialState: AppState = {
   user: null,
@@ -27,9 +30,10 @@ const initialState: AppState = {
   },
   searchQuery: '',
   searchHistory: [],
-  darkMode: false,
+  darkMode: true,
   selectedApp: null,
-  isLoading: false
+  isLoading: false,
+  filterPanelOpen: true
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -63,10 +67,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, searchHistory: [] };
     case 'TOGGLE_DARK_MODE':
       return { ...state, darkMode: !state.darkMode };
+    case 'SET_DARK_MODE':
+      return { ...state, darkMode: action.payload };
     case 'SET_SELECTED_APP':
       return { ...state, selectedApp: action.payload };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
+    case 'SET_FILTER_PANEL_OPEN':
+      return { ...state, filterPanelOpen: action.payload };
     default:
       return state;
   }
@@ -85,7 +93,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const loadData = async () => {
       try {
         dispatch({ type: 'SET_LOADING', payload: true });
-        
+
         // Check for current user
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
@@ -96,14 +104,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const applications = await applicationService.getAllApplications();
         dispatch({ type: 'SET_APPLICATIONS', payload: applications });
 
-        // Load preferences from localStorage (UI preferences)
-        const preferences = localStorage.getItem('app_directory_preferences');
-        if (preferences) {
-          const prefs = JSON.parse(preferences);
-          if (prefs.darkMode) {
-            dispatch({ type: 'TOGGLE_DARK_MODE' });
-          }
-        }
+        // Load dark mode preference from cookie (default: true)
+        const darkModeCookie = Cookies.get('app_dark_mode');
+        const darkModeValue = darkModeCookie !== undefined ? darkModeCookie === 'true' : true;
+        dispatch({ type: 'SET_DARK_MODE', payload: darkModeValue });
+
+        // Load filter panel visibility preference from cookie (default: true)
+        const filterPanelCookie = Cookies.get('app_filter_panel_open');
+        const filterPanelValue = filterPanelCookie !== undefined ? filterPanelCookie === 'true' : true;
+        dispatch({ type: 'SET_FILTER_PANEL_OPEN', payload: filterPanelValue });
 
         // Load search history
         const searchHistory = localStorage.getItem('app_directory_search_history');
@@ -129,15 +138,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Save UI preferences to localStorage
+  // Save dark mode preference to cookie and apply theme
   useEffect(() => {
-    localStorage.setItem('app_directory_preferences', JSON.stringify({ darkMode: state.darkMode }));
+    Cookies.set('app_dark_mode', String(state.darkMode), { expires: 365 });
     if (state.darkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
   }, [state.darkMode]);
+
+  // Save filter panel visibility preference to cookie
+  useEffect(() => {
+    Cookies.set('app_filter_panel_open', String(state.filterPanelOpen), { expires: 365 });
+  }, [state.filterPanelOpen]);
 
   useEffect(() => {
     localStorage.setItem('app_directory_search_history', JSON.stringify(state.searchHistory));

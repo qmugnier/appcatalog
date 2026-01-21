@@ -99,6 +99,7 @@ export interface AppState {
   darkMode: boolean;
   selectedApp: Application | null;
   isLoading: boolean;
+  filterPanelOpen: boolean;
 }
 
 export const FUNCTIONAL_DOMAINS = [

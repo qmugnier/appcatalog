@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, Filter } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { FUNCTIONAL_DOMAINS, STATUS_OPTIONS } from '../types';
@@ -54,7 +53,7 @@ export default function FilterPanel({ isOpen, onClose }: FilterPanelProps) {
       
       {/* Filter panel */}
       <div className={`
-        fixed lg:sticky top-0 right-0 lg:right-auto h-full lg:h-auto
+        fixed lg:static top-0 right-0 h-full lg:h-auto
         w-80 lg:w-72 bg-white dark:bg-gray-800 shadow-xl lg:shadow-none
         border-l lg:border-l-0 lg:border-r border-gray-200 dark:border-gray-700
         z-50 lg:z-auto transform transition-transform duration-300 ease-in-out
@@ -77,7 +76,7 @@ export default function FilterPanel({ isOpen, onClose }: FilterPanelProps) {
             </div>
             <button
               onClick={onClose}
-              className="lg:hidden p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
               aria-label="Close filters"
             >
               <X className="w-5 h-5" />

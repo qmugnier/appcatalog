@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
-import { Search, Menu, X, Sun, Moon, User, LogOut, Settings } from 'lucide-react';
+import { Search, Menu, X, Sun, Moon, User, LogOut, Settings, SlidersHorizontal } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import SearchBar from './SearchBar';
 import LoginModal from './LoginModal';
+import SettingsModal from './SettingsModal';
 import { authService } from '../services/authService';
 
-export default function Header() {
+interface HeaderProps {
+  onToggleFilters?: () => void;
+}
+
+export default function Header({ onToggleFilters }: HeaderProps) {
   const { state, dispatch } = useApp();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -52,6 +58,14 @@ export default function Header() {
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center space-x-4">
               <button
+                onClick={onToggleFilters}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                aria-label="Toggle filters"
+              >
+                <SlidersHorizontal className="w-5 h-5" />
+              </button>
+
+              <button
                 onClick={toggleDarkMode}
                 className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 aria-label="Toggle dark mode"
@@ -82,7 +96,13 @@ export default function Header() {
                       <div className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                         {state.user.role === 'admin' ? 'Administrator' : 'User'}
                       </div>
-                      <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <button
+                        onClick={() => {
+                          setIsSettingsModalOpen(true);
+                          setIsUserMenuOpen(false);
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
                         <Settings className="w-4 h-4 mr-2" />
                         Settings
                       </button>
@@ -194,6 +214,13 @@ export default function Header() {
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
       />
+
+      {state.user && (
+        <SettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => setIsSettingsModalOpen(false)}
+        />
+      )}
     </>
   );
 }

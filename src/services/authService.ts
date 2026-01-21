@@ -58,20 +58,80 @@ export class AuthService {
       if (authError) throw authError
       if (!authData.user) throw new Error('Failed to sign in')
 
-      // Get user data from our users table
+      // Get user data from our users table by ID
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('id', authData.user.id)
-        .single()
+        .maybeSingle()
 
       if (userError) throw userError
 
+      // If user exists by ID, return it
+      if (userData) {
+        return {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          role: userData.role || 'user'
+        }
+      }
+
+      // If not found by ID, try by email (handles mismatched IDs)
+      const { data: emailUser, error: emailError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle()
+
+      if (!emailError && emailUser) {
+        // Found by email, return it
+        return {
+          id: emailUser.id,
+          email: emailUser.email,
+          name: emailUser.name,
+          role: emailUser.role || 'user'
+        }
+      }
+
+      // If user doesn't exist in our users table, create it
+      const { data: newUserData, error: createError } = await supabase
+        .from('users')
+        .insert([{
+          id: authData.user.id,
+          email,
+          name: authData.user.user_metadata?.name || email.split('@')[0],
+          role: authData.user.user_metadata?.role || 'user'
+        }])
+        .select()
+        .single()
+
+      if (createError) {
+        // If it's a duplicate key error, try to fetch the user by email again
+        if (createError.code === '23505') {
+          const { data: existingUser, error: fetchError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .maybeSingle()
+
+          if (!fetchError && existingUser) {
+            return {
+              id: existingUser.id,
+              email: existingUser.email,
+              name: existingUser.name,
+              role: existingUser.role || 'user'
+            }
+          }
+        }
+        throw createError
+      }
+
       return {
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        role: userData.role || 'user'
+        id: newUserData.id,
+        email: newUserData.email,
+        name: newUserData.name,
+        role: newUserData.role || 'user'
       }
     } catch (error) {
       console.error('Error signing in:', error)
@@ -99,18 +159,90 @@ export class AuthService {
         .from('users')
         .select('*')
         .eq('id', authUser.id)
-        .single()
+        .maybeSingle()
 
       if (error) {
         console.error('Error fetching user data:', error)
         return null
       }
 
+      // If user exists in our users table, return it
+      if (userData) {
+        return {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          role: userData.role || 'user'
+        }
+      }
+
+      // If user doesn't exist by ID, check if they exist by email (handles mismatched IDs)
+      if (authUser.email) {
+        const { data: emailUser, error: emailError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', authUser.email)
+          .maybeSingle()
+
+        if (!emailError && emailUser) {
+          // User exists but with different ID, update the ID
+          const { data: updatedUser, error: updateError } = await supabase
+            .from('users')
+            .update({ id: authUser.id })
+            .eq('email', authUser.email)
+            .select()
+            .single()
+
+          if (!updateError && updatedUser) {
+            return {
+              id: updatedUser.id,
+              email: updatedUser.email,
+              name: updatedUser.name,
+              role: updatedUser.role || 'user'
+            }
+          }
+        }
+      }
+
+      // If user doesn't exist at all, create it
+      const { data: newUserData, error: createError } = await supabase
+        .from('users')
+        .insert([{
+          id: authUser.id,
+          email: authUser.email || '',
+          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+          role: authUser.user_metadata?.role || 'user'
+        }])
+        .select()
+        .single()
+
+      if (createError) {
+        // If it's a duplicate email error, try fetching by email one more time
+        if (createError.code === '23505' && authUser.email) {
+          const { data: fallbackUser, error: fallbackError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', authUser.email)
+            .maybeSingle()
+
+          if (!fallbackError && fallbackUser) {
+            return {
+              id: fallbackUser.id,
+              email: fallbackUser.email,
+              name: fallbackUser.name,
+              role: fallbackUser.role || 'user'
+            }
+          }
+        }
+        console.error('Error creating user record:', createError)
+        return null
+      }
+
       return {
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        role: userData.role || 'user'
+        id: newUserData.id,
+        email: newUserData.email,
+        name: newUserData.name,
+        role: newUserData.role || 'user'
       }
     } catch (error) {
       console.error('Error getting current user:', error)
@@ -152,7 +284,7 @@ export class AuthService {
         .from('users')
         .select('*')
         .eq('email', email)
-        .single()
+        .maybeSingle()
 
       if (existingUser) {
         return {

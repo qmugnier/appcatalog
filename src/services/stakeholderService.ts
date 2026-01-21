@@ -12,7 +12,15 @@ export class StakeholderService {
       if (stakeholderError) throw stakeholderError;
       if (!stakeholders) return [];
 
-      const stakeholderIds = stakeholders.map(s => s.id);
+      // Deduplicate stakeholders by id (keep only unique people)
+      const uniqueStakeholdersMap = new Map<string, any>();
+      stakeholders.forEach(s => {
+        if (!uniqueStakeholdersMap.has(s.id)) {
+          uniqueStakeholdersMap.set(s.id, s);
+        }
+      });
+      const uniqueStakeholders = Array.from(uniqueStakeholdersMap.values());
+      const stakeholderIds = uniqueStakeholders.map(s => s.id);
 
       const { data: roles, error: rolesError } = await supabase
         .from('stakeholder_roles')
@@ -37,7 +45,7 @@ export class StakeholderService {
         });
       });
 
-      return stakeholders.map(s => ({
+      return uniqueStakeholders.map(s => ({
         id: s.id,
         name: s.name,
         email: s.email,
@@ -194,6 +202,69 @@ export class StakeholderService {
       if (error) throw error;
     } catch (error) {
       console.error('Error removing stakeholder role:', error);
+      throw error;
+    }
+  }
+
+  async getStakeholdersByApplicationId(applicationId: string): Promise<Stakeholder[]> {
+    try {
+      const { data: roles, error: rolesError } = await supabase
+        .from('stakeholder_roles')
+        .select(`
+          id,
+          role,
+          created_at,
+          stakeholder_id,
+          stakeholders (
+            id,
+            name,
+            email,
+            department,
+            position,
+            created_at
+          ),
+          applications (
+            app_code
+          )
+        `)
+        .eq('application_id', applicationId);
+
+      if (rolesError) throw rolesError;
+      if (!roles || roles.length === 0) return [];
+
+      const stakeholderMap = new Map<string, Stakeholder>();
+      
+      for (const role of roles) {
+        const stakeholderId = role.stakeholder_id;
+        const stakeholderData = (role.stakeholders as any);
+        
+        if (!stakeholderMap.has(stakeholderId)) {
+          stakeholderMap.set(stakeholderId, {
+            id: stakeholderData.id,
+            name: stakeholderData.name,
+            email: stakeholderData.email,
+            department: stakeholderData.department || 'General',
+            position: stakeholderData.position || '',
+            roles: [],
+            createdAt: stakeholderData.created_at
+          });
+        }
+        
+        const stakeholder = stakeholderMap.get(stakeholderId)!;
+        const appData = (role.applications as any);
+        stakeholder.roles.push({
+          id: role.id,
+          stakeholderId: role.stakeholder_id,
+          applicationId: applicationId,
+          applicationCode: appData?.app_code,
+          role: role.role,
+          createdAt: role.created_at
+        });
+      }
+
+      return Array.from(stakeholderMap.values());
+    } catch (error) {
+      console.error('Error fetching stakeholders for application:', error);
       throw error;
     }
   }
