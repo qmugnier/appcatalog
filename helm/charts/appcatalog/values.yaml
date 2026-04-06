@@ -6,6 +6,7 @@ image:
     - name: regcred
 
 replicaCount: 1
+containerPort: 80
 
 serviceAccount:
   create: false

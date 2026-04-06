@@ -42,7 +42,7 @@ spec:
               subPath: nginx.conf
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: {{ .Values.containerPort }}
       imagePullSecrets:
         {{- range .Values.image.pullSecrets }}
         - name: {{ .name }}
