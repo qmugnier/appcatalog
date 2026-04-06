@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "appcatalog.fullname" . }}
+  labels:
+    {{- include "appcatalog.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -10,6 +12,8 @@ spec:
   template:
     metadata:
       labels:
+        {{- include "appcatalog.labels" . | nindent 8 }}
+        {{- include "appcatalog.selectorLabels" . | nindent 4 }}
         app: {{ include "appcatalog.name" . }}
     spec:
       {{- if .Values.serviceAccount.create }}
