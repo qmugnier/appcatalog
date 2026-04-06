@@ -13,7 +13,7 @@ spec:
     metadata:
       labels:
         {{- include "appcatalog.labels" . | nindent 8 }}
-        {{- include "appcatalog.selectorLabels" . | nindent 4 }}
+        {{- include "appcatalog.selectorLabels" . | nindent 8 }}
         app: {{ include "appcatalog.name" . }}
     spec:
       {{- if .Values.serviceAccount.create }}
